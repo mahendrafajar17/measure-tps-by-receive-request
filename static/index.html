@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook Testing Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button.danger {
+            background: #dc3545;
+        }
+        
+        button.danger:hover {
+            background: #c82333;
+        }
+        
+        .webhook-url {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .metric {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .metric-label {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .requests-log {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .request-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .request-item:last-child {
+            border-bottom: none;
+        }
+        
+        .method {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: white;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .method.GET { background: #28a745; }
+        .method.POST { background: #007bff; }
+        .method.PUT { background: #ffc107; color: #333; }
+        .method.DELETE { background: #dc3545; }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-online { background: #28a745; }
+        .status-offline { background: #dc3545; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: black;
+        }
+        
+        .webhook-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+        }
+        
+        .webhook-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .webhook-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .webhook-url {
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 5px 8px;
+            border-radius: 3px;
+            word-break: break-all;
+        }
+        
+        .webhook-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .webhook-stat {
+            text-align: center;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+        }
+        
+        .webhook-actions {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .webhook-actions button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .modal form {
+            margin-top: 20px;
+        }
+        
+        .modal button {
+            margin-top: 10px;
+            margin-right: 10px;
+        }
+        
+        .modal button[type="button"] {
+            background: #6c757d;
+        }
+        
+        .modal button[type="button"]:hover {
+            background: #545b62;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Multi-Webhook Testing Tool</h1>
+            <p>Create and manage multiple webhook endpoints with custom configurations</p>
+        </div>
+        
+        <div class="card">
+            <h2>🔗 Your Webhooks</h2>
+            <div style="margin-bottom: 15px;">
+                <button onclick="showCreateModal()">+ Create New Webhook</button>
+                <button onclick="loadWebhooks()">Refresh</button>
+            </div>
+            <div id="webhooksList"></div>
+        </div>
+        
+        <div class="card">
+            <h2>📊 Overall Statistics</h2>
+            <div class="metrics" id="overallStats">
+                <div class="metric">
+                    <div class="metric-value" id="totalAllRequests">0</div>
+                    <div class="metric-label">Total Requests (All Webhooks)</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="combinedTPS">0</div>
+                    <div class="metric-label">Combined TPS</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="activeWebhooks">0</div>
+                    <div class="metric-label">Active Webhooks</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="totalWebhooks">0</div>
+                    <div class="metric-label">Total Webhooks</div>
+                </div>
+            </div>
+            <div style="margin-top: 15px;">
+                <button onclick="resetAllMetrics()">Reset All Metrics</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>📝 Request Logs</h2>
+            <div style="padding: 20px; text-align: center; color: #666; background: #f8f9fa; border-radius: 4px;">
+                <h3>📋 Structured Logging Active</h3>
+                <p><strong>Logs saved to:</strong> <code>webhook.log</code> + console output</p>
+                <p>Real-time structured logs with timestamp, webhook info, and request details.</p>
+                <div style="margin-top: 15px; font-family: monospace; background: #2d3748; color: #e2e8f0; padding: 10px; border-radius: 4px; text-align: left;">
+                    <div style="color: #68d391;">✅ Fast Webhook: Logging disabled (max performance)</div>
+                    <div style="color: #63b3ed;">📝 Default Webhook: Logging enabled → webhook.log</div>
+                    <div style="color: #f6ad55;">🐌 Slow Webhook: Logging enabled → webhook.log</div>
+                </div>
+                <div style="margin-top: 10px; font-size: 12px; color: #888;">
+                    <strong>Log format:</strong> timestamp + structured fields (webhook_id, method, path, ip, user_agent)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Webhook Modal -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideCreateModal()">&times;</span>
+            <h2>Create New Webhook</h2>
+            <form id="createWebhookForm">
+                <div class="form-group">
+                    <label for="webhookName">Name:</label>
+                    <input type="text" id="webhookName" required placeholder="My Webhook">
+                </div>
+                
+                <div class="form-group">
+                    <label for="webhookPath">Custom Path (optional):</label>
+                    <input type="text" id="webhookPath" placeholder="my-custom-path">
+                </div>
+                
+                <div class="form-group">
+                    <label for="createStatusCode">Status Code:</label>
+                    <select id="createStatusCode">
+                        <option value="200">200 OK</option>
+                        <option value="201">201 Created</option>
+                        <option value="202">202 Accepted</option>
+                        <option value="400">400 Bad Request</option>
+                        <option value="404">404 Not Found</option>
+                        <option value="500">500 Internal Server Error</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="createContentType">Content Type:</label>
+                    <select id="createContentType">
+                        <option value="application/json">application/json</option>
+                        <option value="text/plain">text/plain</option>
+                        <option value="text/html">text/html</option>
+                        <option value="application/xml">application/xml</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="createTimeout">Response Delay (ms):</label>
+                    <input type="number" id="createTimeout" min="0" max="10000" value="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="createResponseBody">Response Body:</label>
+                    <textarea id="createResponseBody" placeholder='{"message": "Request received"}'></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="createEnableLogging" checked>
+                        Enable Logging (uncheck for maximum performance)
+                    </label>
+                </div>
+                
+                <button type="submit">Create Webhook</button>
+                <button type="button" onclick="hideCreateModal()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let webhooks = [];
+        let refreshInterval;
+        
+        function showCreateModal() {
+            document.getElementById('createModal').style.display = 'block';
+        }
+        
+        function hideCreateModal() {
+            document.getElementById('createModal').style.display = 'none';
+            document.getElementById('createWebhookForm').reset();
+        }
+        
+        function loadWebhooks() {
+            fetch('/api/webhooks')
+                .then(response => response.json())
+                .then(data => {
+                    webhooks = data;
+                    renderWebhooks();
+                    updateLogFilter();
+                    loadOverallStatistics();
+                });
+        }
+        
+        function renderWebhooks() {
+            const container = document.getElementById('webhooksList');
+            
+            if (webhooks.length === 0) {
+                container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No webhooks yet. Create your first webhook!</p>';
+                return;
+            }
+            
+            container.innerHTML = webhooks.map(webhook => {
+                const url = webhook.id === 'default' ? 
+                    `${window.location.origin}/webhook` : 
+                    `${window.location.origin}${webhook.path}`;
+                
+                return `
+                    <div class="webhook-item">
+                        <div class="webhook-header">
+                            <div class="webhook-title">${webhook.name}</div>
+                            <div>
+                                <span class="status-indicator ${webhook.last_request ? 'status-online' : 'status-offline'}"></span>
+                                ${webhook.last_request ? 'Active' : 'Waiting'}
+                            </div>
+                        </div>
+                        
+                        <div class="webhook-url">${url}</div>
+                        
+                        <div class="webhook-stats" id="stats-${webhook.id}">
+                            <div class="webhook-stat">
+                                <div><strong id="requests-${webhook.id}">0</strong></div>
+                                <div style="font-size: 12px; color: #666;">Requests</div>
+                            </div>
+                            <div class="webhook-stat">
+                                <div><strong id="tps-${webhook.id}">0</strong></div>
+                                <div style="font-size: 12px; color: #666;">TPS</div>
+                            </div>
+                            <div class="webhook-stat">
+                                <div><strong>${webhook.config.status_code}</strong></div>
+                                <div style="font-size: 12px; color: #666;">Status</div>
+                            </div>
+                            <div class="webhook-stat">
+                                <div><strong>${webhook.config.timeout}ms</strong></div>
+                                <div style="font-size: 12px; color: #666;">Delay</div>
+                            </div>
+                            <div class="webhook-stat">
+                                <div><strong>${webhook.config.enable_logging ? '📝' : '🚫'}</strong></div>
+                                <div style="font-size: 12px; color: #666;">Logging</div>
+                            </div>
+                        </div>
+                        
+                        <div class="webhook-actions">
+                            <button onclick="copyWebhookUrl('${url}')">Copy URL</button>
+                            <button onclick="viewWebhookLogs('${webhook.id}')">View Logs</button>
+                            <button onclick="resetWebhookMetrics('${webhook.id}')">Reset Metrics</button>
+                            ${!['default', 'fast', 'slow'].includes(webhook.id) ? `<button onclick="deleteWebhook('${webhook.id}')" class="danger">Delete</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Load metrics for each webhook
+            webhooks.forEach(webhook => {
+                loadWebhookMetrics(webhook.id);
+            });
+        }
+        
+        function loadWebhookMetrics(webhookId) {
+            fetch(`/api/webhooks/${webhookId}/metrics`)
+                .then(response => response.json())
+                .then(metrics => {
+                    document.getElementById(`requests-${webhookId}`).textContent = metrics.total_requests;
+                    document.getElementById(`tps-${webhookId}`).textContent = metrics.tps.toFixed(2);
+                })
+                .catch(error => {
+                    console.error(`Error loading metrics for webhook ${webhookId}:`, error);
+                });
+        }
+        
+        function loadOverallStatistics() {
+            // Calculate overall statistics from all webhooks
+            Promise.all(webhooks.map(webhook => 
+                fetch(`/api/webhooks/${webhook.id}/metrics`)
+                    .then(response => response.json())
+                    .catch(() => ({ total_requests: 0, tps: 0, duration_seconds: 0 }))
+            )).then(allMetrics => {
+                const totalRequests = allMetrics.reduce((sum, metrics) => sum + metrics.total_requests, 0);
+                const maxDuration = Math.max(...allMetrics.map(metrics => metrics.duration_seconds || 0));
+                
+                // More accurate combined TPS: total requests / longest duration
+                const combinedTPS = maxDuration > 0 ? totalRequests / maxDuration : 0;
+                
+                const activeWebhooks = allMetrics.filter(metrics => metrics.total_requests > 0).length;
+                
+                document.getElementById('totalAllRequests').textContent = totalRequests;
+                document.getElementById('combinedTPS').textContent = combinedTPS.toFixed(2);
+                document.getElementById('activeWebhooks').textContent = activeWebhooks;
+                document.getElementById('totalWebhooks').textContent = webhooks.length;
+            }).catch(error => {
+                console.error('Error loading overall statistics:', error);
+            });
+        }
+        
+        function updateLogFilter() {
+            const select = document.getElementById('logWebhookFilter');
+            select.innerHTML = '<option value="">All Webhooks</option>';
+            
+            webhooks.forEach(webhook => {
+                const option = document.createElement('option');
+                option.value = webhook.id;
+                option.textContent = webhook.name;
+                select.appendChild(option);
+            });
+        }
+        
+        function copyWebhookUrl(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('URL copied to clipboard!');
+            });
+        }
+        
+        function viewWebhookLogs(webhookId) {
+            document.getElementById('logWebhookFilter').value = webhookId;
+            loadRequests();
+            document.querySelector('#requestsLog').scrollIntoView();
+        }
+        
+        function resetWebhookMetrics(webhookId) {
+            fetch(`/api/webhooks/${webhookId}/reset`, { method: 'POST' })
+                .then(() => {
+                    loadWebhookMetrics(webhookId);
+                    loadOverallStatistics();
+                    alert('Metrics reset successfully!');
+                });
+        }
+        
+        function resetAllMetrics() {
+            if (confirm('Are you sure you want to reset ALL webhook metrics?')) {
+                Promise.all(webhooks.map(webhook => 
+                    fetch(`/api/webhooks/${webhook.id}/reset`, { method: 'POST' })
+                )).then(() => {
+                    webhooks.forEach(webhook => {
+                        loadWebhookMetrics(webhook.id);
+                    });
+                    loadOverallStatistics();
+                    alert('All metrics reset successfully!');
+                }).catch(error => {
+                    alert('Error resetting metrics: ' + error.message);
+                });
+            }
+        }
+        
+        function deleteWebhook(webhookId) {
+            if (confirm('Are you sure you want to delete this webhook?')) {
+                fetch(`/api/webhooks/${webhookId}`, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(() => {
+                        loadWebhooks();
+                        alert('Webhook deleted successfully!');
+                    });
+            }
+        }
+        
+        // Request logs functions disabled (using console logging)
+        function loadRequests() {
+            // No-op - console logging only
+        }
+        
+        function clearRequests() {
+            // No-op - console logging only
+        }
+        
+        // Create webhook form handler
+        document.getElementById('createWebhookForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const config = {
+                status_code: parseInt(document.getElementById('createStatusCode').value),
+                content_type: document.getElementById('createContentType').value,
+                timeout: parseInt(document.getElementById('createTimeout').value),
+                response_body: document.getElementById('createResponseBody').value || '{"message": "Request received"}',
+                headers: {},
+                enable_logging: document.getElementById('createEnableLogging').checked
+            };
+            
+            const data = {
+                name: document.getElementById('webhookName').value,
+                path: document.getElementById('webhookPath').value,
+                config: config
+            };
+            
+            fetch('/api/webhooks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                hideCreateModal();
+                loadWebhooks();
+                const webhookUrl = `${window.location.origin}${result.path}`;
+                alert(`Webhook created! URL: ${webhookUrl}`);
+            })
+            .catch(error => {
+                alert('Error creating webhook: ' + error.message);
+            });
+        });
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('createModal');
+            if (event.target === modal) {
+                hideCreateModal();
+            }
+        }
+        
+        // Initialize
+        loadWebhooks();
+        loadRequests();
+        
+        // Auto-refresh every 3 seconds
+        refreshInterval = setInterval(() => {
+            webhooks.forEach(webhook => {
+                loadWebhookMetrics(webhook.id);
+            });
+            loadOverallStatistics();
+            loadRequests();
+        }, 3000);
+    </script>
+</body>
+</html>
