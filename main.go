@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -11,27 +12,45 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 )
 
 type WebhookConfig struct {
-	StatusCode     int               `json:"status_code"`
-	ContentType    string            `json:"content_type"`
-	ResponseBody   string            `json:"response_body"`
-	Timeout        int               `json:"timeout"` // in milliseconds
-	Headers        map[string]string `json:"headers"`
-	EnableLogging  bool              `json:"enable_logging"`
+	StatusCode    int               `json:"status_code" yaml:"status_code"`
+	ContentType   string            `json:"content_type" yaml:"content_type"`
+	ResponseBody  string            `json:"response_body" yaml:"response_body"`
+	Timeout       int               `json:"timeout" yaml:"timeout"` // in milliseconds
+	Headers       map[string]string `json:"headers" yaml:"headers"`
+	EnableLogging bool              `json:"enable_logging" yaml:"enable_logging"`
 }
 
 type Webhook struct {
-	ID          string         `json:"id"`
-	Name        string         `json:"name"`
-	Path        string         `json:"path"`
-	Config      WebhookConfig  `json:"config"`
-	Calculator  *TPSCalculator `json:"-"`
-	CreatedAt   time.Time      `json:"created_at"`
-	LastRequest *time.Time     `json:"last_request,omitempty"`
+	ID          string         `json:"id" yaml:"id"`
+	Name        string         `json:"name" yaml:"name"`
+	Path        string         `json:"path" yaml:"path"`
+	Config      WebhookConfig  `json:"config" yaml:"config"`
+	Calculator  *TPSCalculator `json:"-" yaml:"-"`
+	CreatedAt   time.Time      `json:"created_at" yaml:"created_at"`
+	LastRequest *time.Time     `json:"last_request,omitempty" yaml:"last_request,omitempty"`
 }
 
+type WebhookConfigFile struct {
+	Server struct {
+		Port int    `yaml:"port"`
+		Host string `yaml:"host"`
+	} `yaml:"server"`
+	Logging struct {
+		LogFile   string `yaml:"log_file"`
+		LogLevel  string `yaml:"log_level"`
+		LogFormat string `yaml:"log_format"`
+	} `yaml:"logging"`
+	DefaultWebhooks []struct {
+		ID     string        `yaml:"id"`
+		Name   string        `yaml:"name"`
+		Path   string        `yaml:"path"`
+		Config WebhookConfig `yaml:"config"`
+	} `yaml:"default_webhooks"`
+}
 
 type TPSCalculator struct {
 	mu           sync.RWMutex
@@ -51,13 +70,60 @@ func NewTPSCalculator() *TPSCalculator {
 	return &TPSCalculator{}
 }
 
-func NewWebhookServer(router *gin.Engine) *WebhookServer {
+func loadConfigFromYAML(filename string) (*WebhookConfigFile, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var config WebhookConfigFile
+	err = yaml.Unmarshal(data, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
+func NewWebhookServer(router *gin.Engine) (*WebhookServer, *WebhookConfigFile) {
 	server := &WebhookServer{
 		webhooks: make(map[string]*Webhook),
 		router:   router,
 	}
 
-	// Create default webhooks
+	// Try to load from config.yaml first
+	config, err := loadConfigFromYAML("config.yaml")
+	if err != nil {
+		logrus.Warnf("Could not load config.yaml: %v, using default configuration", err)
+		// Use default configuration if YAML file not found
+		server.loadDefaultWebhooks()
+		// Return default config
+		defaultConfig := &WebhookConfigFile{
+			Server: struct {
+				Port int    `yaml:"port"`
+				Host string `yaml:"host"`
+			}{
+				Port: 8080,
+				Host: "localhost",
+			},
+		}
+		return server, defaultConfig
+	} else {
+		logrus.Info("Loading webhooks from config.yaml")
+		server.loadWebhooksFromConfig(config)
+		// Set defaults if not specified
+		if config.Server.Port == 0 {
+			config.Server.Port = 8080
+		}
+		if config.Server.Host == "" {
+			config.Server.Host = "localhost"
+		}
+		return server, config
+	}
+}
+
+func (ws *WebhookServer) loadDefaultWebhooks() {
+	// Create default webhooks (fallback)
 	defaultWebhook := &Webhook{
 		ID:   "default",
 		Name: "Default Webhook",
@@ -84,7 +150,7 @@ func NewWebhookServer(router *gin.Engine) *WebhookServer {
 			ResponseBody:  `{"message": "Fast response", "delay": "0ms"}`,
 			Timeout:       0,
 			Headers:       make(map[string]string),
-			EnableLogging: false, // Disable for max performance
+			EnableLogging: false,
 		},
 		Calculator: NewTPSCalculator(),
 		CreatedAt:  time.Now(),
@@ -97,8 +163,8 @@ func NewWebhookServer(router *gin.Engine) *WebhookServer {
 		Config: WebhookConfig{
 			StatusCode:    200,
 			ContentType:   "application/json",
-			ResponseBody:  `{"message": "Slow response", "delay": "1000ms"}`,
-			Timeout:       1000, // 1 second
+			ResponseBody:  `{"message": "Slow response", "delay": "2000ms"}`,
+			Timeout:       2000,
 			Headers:       make(map[string]string),
 			EnableLogging: true,
 		},
@@ -106,11 +172,31 @@ func NewWebhookServer(router *gin.Engine) *WebhookServer {
 		CreatedAt:  time.Now(),
 	}
 
-	server.webhooks["default"] = defaultWebhook
-	server.webhooks["fast"] = fastWebhook
-	server.webhooks["slow"] = slowWebhook
+	ws.webhooks["default"] = defaultWebhook
+	ws.webhooks["fast"] = fastWebhook
+	ws.webhooks["slow"] = slowWebhook
+}
 
-	return server
+func (ws *WebhookServer) loadWebhooksFromConfig(config *WebhookConfigFile) {
+	for _, webhookConfig := range config.DefaultWebhooks {
+		if webhookConfig.Config.Headers == nil {
+			webhookConfig.Config.Headers = make(map[string]string)
+		}
+		
+		webhook := &Webhook{
+			ID:         webhookConfig.ID,
+			Name:       webhookConfig.Name,
+			Path:       webhookConfig.Path,
+			Config:     webhookConfig.Config,
+			Calculator: NewTPSCalculator(),
+			CreatedAt:  time.Now(),
+		}
+		
+		ws.webhooks[webhookConfig.ID] = webhook
+		
+		// Register route for this webhook
+		ws.registerWebhookRoute(webhook)
+	}
 }
 
 func (ws *WebhookServer) createWebhook(name, path string, config WebhookConfig) *Webhook {
@@ -230,7 +316,6 @@ func (ws *WebhookServer) deleteWebhook(id string) bool {
 	return false
 }
 
-
 func (t *TPSCalculator) RecordRequest() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -291,34 +376,23 @@ func main() {
 	if err != nil {
 		logrus.Fatalln("Failed to open log file:", err)
 	}
-	
+
 	// Dual output: console AND file
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
 	logrus.SetOutput(multiWriter)
-	
+
 	// Set log format
 	logrus.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
+		FullTimestamp:   true,
 		TimestampFormat: "2006-01-02 15:04:05",
 	})
-	
+
 	logrus.Info("🎯 Multi-Webhook Server initializing...")
 
 	r := gin.Default()
-	webhookServer := NewWebhookServer(r)
+	webhookServer, config := NewWebhookServer(r)
 
-	// Default webhook endpoints
-	r.Any("/webhook", func(c *gin.Context) {
-		webhookServer.handleWebhookRequest("default", c)
-	})
-	
-	r.Any("/webhook/fast", func(c *gin.Context) {
-		webhookServer.handleWebhookRequest("fast", c)
-	})
-	
-	r.Any("/webhook/slow", func(c *gin.Context) {
-		webhookServer.handleWebhookRequest("slow", c)
-	})
+	// Note: Webhook routes are now registered automatically from YAML config
 
 	// Dynamic webhook handler for /w/{id} pattern (fallback for webhooks without custom path)
 	r.Any("/w/:id", func(c *gin.Context) {
@@ -493,22 +567,49 @@ func main() {
 		})
 	})
 
+	// Summary endpoint for all webhooks
+	r.GET("/api/summary", func(c *gin.Context) {
+		webhooks := webhookServer.getAllWebhooks()
+		summary := make(map[string]interface{})
+		
+		for _, webhook := range webhooks {
+			metrics := webhook.Calculator.GetMetrics()
+			summary[webhook.ID] = map[string]interface{}{
+				"name":            webhook.Name,
+				"path":            webhook.Path,
+				"delay_ms":        webhook.Config.Timeout,
+				"total_requests":  metrics["total_requests"],
+				"tps":             metrics["tps"],
+				"duration_seconds": metrics["duration_seconds"],
+			}
+		}
+		
+		c.JSON(http.StatusOK, gin.H{
+			"summary": summary,
+			"timestamp": time.Now().Format(time.RFC3339),
+		})
+	})
+
 	// Serve static files for web interface
 	r.Static("/static", "./static")
 	r.GET("/", func(c *gin.Context) {
 		c.Redirect(http.StatusMovedPermanently, "/static/index.html")
 	})
 
-	logrus.Info("🎯 Multi-Webhook Server starting on :8080")
-	logrus.Info("📱 Web interface: http://localhost:8080")
+	// Use port from config
+	serverAddr := fmt.Sprintf(":%d", config.Server.Port)
+	baseURL := fmt.Sprintf("http://%s:%d", config.Server.Host, config.Server.Port)
+	
+	logrus.Infof("🎯 Multi-Webhook Server starting on %s", serverAddr)
+	logrus.Infof("📱 Web interface: %s", baseURL)
 	logrus.Info("📋 Log file: webhook.log")
 	logrus.Info("")
 	logrus.Info("🔗 Default Webhooks:")
-	logrus.Info("   • Standard: http://localhost:8080/webhook")
-	logrus.Info("   • Fast (0ms): http://localhost:8080/webhook/fast")
-	logrus.Info("   • Slow (1s): http://localhost:8080/webhook/slow")
+	logrus.Infof("   • Standard: %s/webhook", baseURL)
+	logrus.Infof("   • Fast (0ms): %s/webhook/fast", baseURL)
+	logrus.Infof("   • Slow (2s): %s/webhook/slow", baseURL)
 	logrus.Info("")
-	logrus.Info("🔗 Custom webhooks: http://localhost:8080/w/{webhook-id}")
-	logrus.Info("📊 API docs: http://localhost:8080/api/webhooks")
-	r.Run(":8080")
+	logrus.Infof("🔗 Custom webhooks: %s/w/{webhook-id}", baseURL)
+	logrus.Infof("📊 API docs: %s/api/webhooks", baseURL)
+	r.Run(serverAddr)
 }

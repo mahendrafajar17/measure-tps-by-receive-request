@@ -1,0 +1,67 @@
+server:
+  port: 8080
+  host: "localhost"
+
+logging:
+  log_file: "webhook.log"
+  log_level: "info"
+  log_format: "text"
+
+default_webhooks:
+  - id: "default"
+    name: "Default Webhook"
+    path: "/webhook"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"message": "Request received"}'
+      timeout: 0
+      headers: {}
+      enable_logging: true
+
+  - id: "fast"
+    name: "Fast Webhook"
+    path: "/webhook/fast"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"message": "Fast response", "delay": "0ms"}'
+      timeout: 0
+      headers: {}
+      enable_logging: false
+
+  - id: "slow"
+    name: "Slow Webhook"
+    path: "/webhook/slow"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"message": "Slow response", "delay": "2000ms"}'
+      timeout: 2000
+      headers: {}
+      enable_logging: true
+
+  - id: "medium"
+    name: "Medium Webhook"
+    path: "/webhook/medium"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"message": "Medium response", "delay": "500ms"}'
+      timeout: 500
+      headers:
+        X-Custom-Header: "webhook-response"
+      enable_logging: true
+
+  - id: "custom"
+    name: "Custom Response Webhook"
+    path: "/webhook/custom"
+    config:
+      status_code: 201
+      content_type: "application/xml"
+      response_body: '<response><message>Custom XML response</message><timestamp>{timestamp}</timestamp></response>'
+      timeout: 100
+      headers:
+        X-Response-Type: "xml"
+        X-Processing-Time: "100ms"
+      enable_logging: true
