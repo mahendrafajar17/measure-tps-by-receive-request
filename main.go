@@ -254,15 +254,36 @@ func (ws *WebhookServer) handleWebhookRequest(webhookID string, c *gin.Context) 
 	now := time.Now()
 	webhook.LastRequest = &now
 
-	// Conditional structured logging with logrus
+	// Read and log request body if logging is enabled
+	var requestBody string
+	var requestHeaders map[string][]string
 	if webhook.Config.EnableLogging {
+		// Read request body
+		bodyBytes, err := io.ReadAll(c.Request.Body)
+		if err == nil {
+			requestBody = string(bodyBytes)
+			// Restore the request body for further processing
+			c.Request.Body = io.NopCloser(strings.NewReader(requestBody))
+		}
+		
+		// Copy request headers
+		requestHeaders = make(map[string][]string)
+		for key, values := range c.Request.Header {
+			requestHeaders[key] = values
+		}
+
+		// Log request details
 		logrus.WithFields(logrus.Fields{
-			"webhook_id": webhookID,
-			"method":     c.Request.Method,
-			"path":       c.Request.URL.Path,
-			"ip":         c.ClientIP(),
-			"user_agent": c.GetHeader("User-Agent"),
-			"webhook":    webhook.Name,
+			"webhook_id":      webhookID,
+			"method":          c.Request.Method,
+			"path":            c.Request.URL.Path,
+			"query_params":    c.Request.URL.RawQuery,
+			"ip":              c.ClientIP(),
+			"user_agent":      c.GetHeader("User-Agent"),
+			"webhook":         webhook.Name,
+			"request_headers": requestHeaders,
+			"request_body":    requestBody,
+			"content_length":  c.Request.ContentLength,
 		}).Info("Request received")
 	}
 
@@ -272,13 +293,30 @@ func (ws *WebhookServer) handleWebhookRequest(webhookID string, c *gin.Context) 
 	}
 
 	// Set custom headers
+	responseHeaders := make(map[string]string)
 	for key, value := range webhook.Config.Headers {
 		c.Header(key, value)
+		responseHeaders[key] = value
 	}
 
-	// Set content type and return response
+	// Set content type and prepare response
 	c.Header("Content-Type", webhook.Config.ContentType)
+	responseHeaders["Content-Type"] = webhook.Config.ContentType
+
+	// Send response
 	c.String(webhook.Config.StatusCode, webhook.Config.ResponseBody)
+
+	// Log response details if logging is enabled
+	if webhook.Config.EnableLogging {
+		logrus.WithFields(logrus.Fields{
+			"webhook_id":       webhookID,
+			"webhook":          webhook.Name,
+			"response_status":  webhook.Config.StatusCode,
+			"response_headers": responseHeaders,
+			"response_body":    webhook.Config.ResponseBody,
+			"processing_time":  time.Since(now).String(),
+		}).Info("Response sent")
+	}
 }
 
 func (ws *WebhookServer) getWebhook(id string) (*Webhook, bool) {
