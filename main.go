@@ -495,6 +495,7 @@ func main() {
 
 		var updateReq struct {
 			Name   string        `json:"name"`
+			Path   string        `json:"path"`
 			Config WebhookConfig `json:"config"`
 		}
 
@@ -504,15 +505,161 @@ func main() {
 		}
 
 		webhookServer.mu.Lock()
+		// Update name if provided
 		if updateReq.Name != "" {
 			webhook.Name = updateReq.Name
 		}
-		if updateReq.Config.StatusCode != 0 {
-			webhook.Config = updateReq.Config
+		
+		// Update path if provided (but don't allow changing default webhook paths)
+		if updateReq.Path != "" && id != "default" && id != "fast" && id != "slow" {
+			// Ensure path starts with /
+			if !strings.HasPrefix(updateReq.Path, "/") {
+				updateReq.Path = "/" + updateReq.Path
+			}
+			webhook.Path = updateReq.Path
+			// Re-register the route with new path
+			webhookServer.registerWebhookRoute(webhook)
 		}
+		
+		// Update config - merge with existing config
+		if updateReq.Config.StatusCode != 0 {
+			webhook.Config.StatusCode = updateReq.Config.StatusCode
+		}
+		if updateReq.Config.ContentType != "" {
+			webhook.Config.ContentType = updateReq.Config.ContentType
+		}
+		if updateReq.Config.ResponseBody != "" {
+			webhook.Config.ResponseBody = updateReq.Config.ResponseBody
+		}
+		if updateReq.Config.Timeout >= 0 {
+			webhook.Config.Timeout = updateReq.Config.Timeout
+		}
+		if updateReq.Config.Headers != nil {
+			if webhook.Config.Headers == nil {
+				webhook.Config.Headers = make(map[string]string)
+			}
+			for key, value := range updateReq.Config.Headers {
+				webhook.Config.Headers[key] = value
+			}
+		}
+		// Update logging setting
+		webhook.Config.EnableLogging = updateReq.Config.EnableLogging
+		
 		webhookServer.mu.Unlock()
 
 		c.JSON(http.StatusOK, webhook)
+	})
+
+	r.PATCH("/api/webhooks/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		webhook, exists := webhookServer.getWebhook(id)
+		if !exists {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Webhook not found"})
+			return
+		}
+
+		var patchReq struct {
+			Name   *string `json:"name"`
+			Path   *string `json:"path"`
+			Config *struct {
+				StatusCode    *int               `json:"status_code"`
+				ContentType   *string            `json:"content_type"`
+				ResponseBody  *string            `json:"response_body"`
+				Timeout       *int               `json:"timeout"`
+				Headers       map[string]string  `json:"headers"`
+				EnableLogging *bool              `json:"enable_logging"`
+			} `json:"config"`
+		}
+
+		if err := c.ShouldBindJSON(&patchReq); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		webhookServer.mu.Lock()
+		
+		// Update name if provided
+		if patchReq.Name != nil {
+			webhook.Name = *patchReq.Name
+		}
+		
+		// Update path if provided (but don't allow changing default webhook paths)
+		if patchReq.Path != nil && id != "default" && id != "fast" && id != "slow" {
+			newPath := *patchReq.Path
+			// Ensure path starts with /
+			if !strings.HasPrefix(newPath, "/") {
+				newPath = "/" + newPath
+			}
+			webhook.Path = newPath
+			// Re-register the route with new path
+			webhookServer.registerWebhookRoute(webhook)
+		}
+		
+		// Update config fields individually if provided
+		if patchReq.Config != nil {
+			if patchReq.Config.StatusCode != nil {
+				webhook.Config.StatusCode = *patchReq.Config.StatusCode
+			}
+			if patchReq.Config.ContentType != nil {
+				webhook.Config.ContentType = *patchReq.Config.ContentType
+			}
+			if patchReq.Config.ResponseBody != nil {
+				webhook.Config.ResponseBody = *patchReq.Config.ResponseBody
+			}
+			if patchReq.Config.Timeout != nil {
+				webhook.Config.Timeout = *patchReq.Config.Timeout
+			}
+			if patchReq.Config.Headers != nil {
+				if webhook.Config.Headers == nil {
+					webhook.Config.Headers = make(map[string]string)
+				}
+				for key, value := range patchReq.Config.Headers {
+					webhook.Config.Headers[key] = value
+				}
+			}
+			if patchReq.Config.EnableLogging != nil {
+				webhook.Config.EnableLogging = *patchReq.Config.EnableLogging
+			}
+		}
+		
+		webhookServer.mu.Unlock()
+
+		c.JSON(http.StatusOK, webhook)
+	})
+
+	r.PUT("/api/webhooks/bulk", func(c *gin.Context) {
+		var bulkUpdateReq struct {
+			Updates map[string]struct {
+				Name   string        `json:"name"`
+				Config WebhookConfig `json:"config"`
+			} `json:"updates"`
+		}
+
+		if err := c.ShouldBindJSON(&bulkUpdateReq); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		updatedWebhooks := make(map[string]*Webhook)
+		
+		webhookServer.mu.Lock()
+		for webhookID, updateData := range bulkUpdateReq.Updates {
+			if webhook, exists := webhookServer.webhooks[webhookID]; exists {
+				if updateData.Name != "" {
+					webhook.Name = updateData.Name
+				}
+				if updateData.Config.StatusCode != 0 {
+					webhook.Config = updateData.Config
+				}
+				updatedWebhooks[webhookID] = webhook
+			}
+		}
+		webhookServer.mu.Unlock()
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Bulk update completed",
+			"updated": updatedWebhooks,
+		})
 	})
 
 	r.DELETE("/api/webhooks/:id", func(c *gin.Context) {

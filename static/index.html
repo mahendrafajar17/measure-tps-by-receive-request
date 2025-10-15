@@ -279,6 +279,7 @@
             <div style="margin-bottom: 15px;">
                 <button onclick="showCreateModal()">+ Create New Webhook</button>
                 <button onclick="loadWebhooks()">Refresh</button>
+                <button onclick="bulkUpdateWebhooks()">Bulk Update All</button>
             </div>
             <div id="webhooksList"></div>
         </div>
@@ -387,6 +388,70 @@
         </div>
     </div>
 
+    <!-- Edit Webhook Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideEditModal()">&times;</span>
+            <h2>Edit Webhook</h2>
+            <form id="editWebhookForm">
+                <input type="hidden" id="editWebhookId">
+                
+                <div class="form-group">
+                    <label for="editWebhookName">Name:</label>
+                    <input type="text" id="editWebhookName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editWebhookPath">Custom Path:</label>
+                    <input type="text" id="editWebhookPath" placeholder="my-custom-path">
+                    <small style="color: #666;">Note: Cannot change path for default webhooks</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editStatusCode">Status Code:</label>
+                    <select id="editStatusCode">
+                        <option value="200">200 OK</option>
+                        <option value="201">201 Created</option>
+                        <option value="202">202 Accepted</option>
+                        <option value="400">400 Bad Request</option>
+                        <option value="404">404 Not Found</option>
+                        <option value="500">500 Internal Server Error</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editContentType">Content Type:</label>
+                    <select id="editContentType">
+                        <option value="application/json">application/json</option>
+                        <option value="text/plain">text/plain</option>
+                        <option value="text/html">text/html</option>
+                        <option value="application/xml">application/xml</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editTimeout">Response Delay (ms):</label>
+                    <input type="number" id="editTimeout" min="0" max="10000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="editResponseBody">Response Body:</label>
+                    <textarea id="editResponseBody"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="editEnableLogging">
+                        Enable Logging (uncheck for maximum performance)
+                    </label>
+                </div>
+                
+                <button type="submit">Update Webhook</button>
+                <button type="button" onclick="hideEditModal()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
     <script>
         let webhooks = [];
         let refreshInterval;
@@ -398,6 +463,32 @@
         function hideCreateModal() {
             document.getElementById('createModal').style.display = 'none';
             document.getElementById('createWebhookForm').reset();
+        }
+        
+        function showEditModal(webhookId) {
+            const webhook = webhooks.find(w => w.id === webhookId);
+            if (!webhook) return;
+            
+            document.getElementById('editWebhookId').value = webhook.id;
+            document.getElementById('editWebhookName').value = webhook.name;
+            document.getElementById('editWebhookPath').value = webhook.path;
+            document.getElementById('editStatusCode').value = webhook.config.status_code;
+            document.getElementById('editContentType').value = webhook.config.content_type;
+            document.getElementById('editTimeout').value = webhook.config.timeout;
+            document.getElementById('editResponseBody').value = webhook.config.response_body;
+            document.getElementById('editEnableLogging').checked = webhook.config.enable_logging;
+            
+            // Disable path editing for default webhooks
+            const pathInput = document.getElementById('editWebhookPath');
+            const isDefaultWebhook = ['default', 'fast', 'slow'].includes(webhook.id);
+            pathInput.disabled = isDefaultWebhook;
+            
+            document.getElementById('editModal').style.display = 'block';
+        }
+        
+        function hideEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            document.getElementById('editWebhookForm').reset();
         }
         
         function loadWebhooks() {
@@ -463,6 +554,7 @@
                             <button onclick="copyWebhookUrl('${url}')">Copy URL</button>
                             <button onclick="viewWebhookLogs('${webhook.id}')">View Logs</button>
                             <button onclick="resetWebhookMetrics('${webhook.id}')">Reset Metrics</button>
+                            <button onclick="showEditModal('${webhook.id}')">Edit</button>
                             ${!['default', 'fast', 'slow'].includes(webhook.id) ? `<button onclick="deleteWebhook('${webhook.id}')" class="danger">Delete</button>` : ''}
                         </div>
                     </div>
@@ -560,6 +652,44 @@
             }
         }
         
+        function bulkUpdateWebhooks() {
+            const timeout = prompt('Enter new timeout (ms) for all webhooks (leave empty to skip):');
+            const statusCode = prompt('Enter new status code for all webhooks (leave empty to skip):');
+            const enableLogging = confirm('Enable logging for all webhooks?');
+            
+            if (!timeout && !statusCode) {
+                alert('No updates specified');
+                return;
+            }
+            
+            const updates = {};
+            webhooks.forEach(webhook => {
+                const config = { ...webhook.config };
+                if (timeout) config.timeout = parseInt(timeout);
+                if (statusCode) config.status_code = parseInt(statusCode);
+                config.enable_logging = enableLogging;
+                
+                updates[webhook.id] = {
+                    name: webhook.name,
+                    config: config
+                };
+            });
+            
+            fetch('/api/webhooks/bulk', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ updates: updates })
+            })
+            .then(response => response.json())
+            .then(result => {
+                loadWebhooks();
+                alert('Bulk update completed successfully!');
+            })
+            .catch(error => {
+                alert('Error performing bulk update: ' + error.message);
+            });
+        }
+        
         function deleteWebhook(webhookId) {
             if (confirm('Are you sure you want to delete this webhook?')) {
                 fetch(`/api/webhooks/${webhookId}`, { method: 'DELETE' })
@@ -616,11 +746,51 @@
             });
         });
         
+        // Edit webhook form handler
+        document.getElementById('editWebhookForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const webhookId = document.getElementById('editWebhookId').value;
+            
+            const config = {
+                status_code: parseInt(document.getElementById('editStatusCode').value),
+                content_type: document.getElementById('editContentType').value,
+                timeout: parseInt(document.getElementById('editTimeout').value),
+                response_body: document.getElementById('editResponseBody').value,
+                headers: {},
+                enable_logging: document.getElementById('editEnableLogging').checked
+            };
+            
+            const data = {
+                name: document.getElementById('editWebhookName').value,
+                path: document.getElementById('editWebhookPath').value,
+                config: config
+            };
+            
+            fetch(`/api/webhooks/${webhookId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                hideEditModal();
+                loadWebhooks();
+                alert('Webhook updated successfully!');
+            })
+            .catch(error => {
+                alert('Error updating webhook: ' + error.message);
+            });
+        });
+        
         // Close modal when clicking outside
         window.onclick = function(event) {
-            const modal = document.getElementById('createModal');
-            if (event.target === modal) {
+            const createModal = document.getElementById('createModal');
+            const editModal = document.getElementById('editModal');
+            if (event.target === createModal) {
                 hideCreateModal();
+            } else if (event.target === editModal) {
+                hideEditModal();
             }
         }
         
