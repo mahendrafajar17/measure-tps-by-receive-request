@@ -408,6 +408,28 @@ func (t *TPSCalculator) Reset() {
 	t.isActive = false
 }
 
+// Custom panic recovery middleware
+func panicRecoveryMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if err := recover(); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"method": c.Request.Method,
+					"path":   c.Request.URL.Path,
+					"error":  err,
+				}).Error("Panic recovered in HTTP handler")
+				
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "Internal server error",
+					"message": "An unexpected error occurred",
+				})
+				c.Abort()
+			}
+		}()
+		c.Next()
+	}
+}
+
 func main() {
 	// Setup logrus for dual output (console + file)
 	logFile, err := os.OpenFile("webhook.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -428,6 +450,10 @@ func main() {
 	logrus.Info("🎯 Multi-Webhook Server initializing...")
 
 	r := gin.Default()
+	
+	// Add custom panic recovery middleware
+	r.Use(panicRecoveryMiddleware())
+	
 	webhookServer, config := NewWebhookServer(r)
 
 	// Note: Webhook routes are now registered automatically from YAML config
@@ -504,7 +530,22 @@ func main() {
 			return
 		}
 
+		// Validate webhook is not nil
+		if webhook == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Webhook data is corrupted"})
+			return
+		}
+
 		webhookServer.mu.Lock()
+		defer webhookServer.mu.Unlock()
+		
+		// Double-check webhook still exists after acquiring lock
+		webhook, exists = webhookServer.webhooks[id]
+		if !exists || webhook == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Webhook not found or has been deleted"})
+			return
+		}
+		
 		// Update name if provided
 		if updateReq.Name != "" {
 			webhook.Name = updateReq.Name
@@ -517,8 +558,8 @@ func main() {
 				updateReq.Path = "/" + updateReq.Path
 			}
 			webhook.Path = updateReq.Path
-			// Re-register the route with new path
-			webhookServer.registerWebhookRoute(webhook)
+			// Note: Route re-registration is not supported in Gin after server starts
+			// Path changes will take effect on next server restart
 		}
 		
 		// Update config - merge with existing config
@@ -544,8 +585,6 @@ func main() {
 		}
 		// Update logging setting
 		webhook.Config.EnableLogging = updateReq.Config.EnableLogging
-		
-		webhookServer.mu.Unlock()
 
 		c.JSON(http.StatusOK, webhook)
 	})
@@ -576,7 +615,21 @@ func main() {
 			return
 		}
 
+		// Validate webhook is not nil
+		if webhook == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Webhook data is corrupted"})
+			return
+		}
+
 		webhookServer.mu.Lock()
+		defer webhookServer.mu.Unlock()
+		
+		// Double-check webhook still exists after acquiring lock
+		webhook, exists = webhookServer.webhooks[id]
+		if !exists || webhook == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Webhook not found or has been deleted"})
+			return
+		}
 		
 		// Update name if provided
 		if patchReq.Name != nil {
@@ -591,8 +644,8 @@ func main() {
 				newPath = "/" + newPath
 			}
 			webhook.Path = newPath
-			// Re-register the route with new path
-			webhookServer.registerWebhookRoute(webhook)
+			// Note: Route re-registration is not supported in Gin after server starts
+			// Path changes will take effect on next server restart
 		}
 		
 		// Update config fields individually if provided
@@ -621,8 +674,6 @@ func main() {
 				webhook.Config.EnableLogging = *patchReq.Config.EnableLogging
 			}
 		}
-		
-		webhookServer.mu.Unlock()
 
 		c.JSON(http.StatusOK, webhook)
 	})
@@ -640,26 +691,43 @@ func main() {
 			return
 		}
 
+		if bulkUpdateReq.Updates == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No updates provided"})
+			return
+		}
+
 		updatedWebhooks := make(map[string]*Webhook)
+		failedUpdates := make(map[string]string)
 		
 		webhookServer.mu.Lock()
+		defer webhookServer.mu.Unlock()
+		
 		for webhookID, updateData := range bulkUpdateReq.Updates {
-			if webhook, exists := webhookServer.webhooks[webhookID]; exists {
-				if updateData.Name != "" {
-					webhook.Name = updateData.Name
-				}
-				if updateData.Config.StatusCode != 0 {
-					webhook.Config = updateData.Config
-				}
-				updatedWebhooks[webhookID] = webhook
+			webhook, exists := webhookServer.webhooks[webhookID]
+			if !exists || webhook == nil {
+				failedUpdates[webhookID] = "Webhook not found"
+				continue
 			}
+			
+			if updateData.Name != "" {
+				webhook.Name = updateData.Name
+			}
+			if updateData.Config.StatusCode != 0 {
+				webhook.Config = updateData.Config
+			}
+			updatedWebhooks[webhookID] = webhook
 		}
-		webhookServer.mu.Unlock()
 
-		c.JSON(http.StatusOK, gin.H{
+		response := gin.H{
 			"message": "Bulk update completed",
 			"updated": updatedWebhooks,
-		})
+		}
+		
+		if len(failedUpdates) > 0 {
+			response["failed"] = failedUpdates
+		}
+
+		c.JSON(http.StatusOK, response)
 	})
 
 	r.DELETE("/api/webhooks/:id", func(c *gin.Context) {

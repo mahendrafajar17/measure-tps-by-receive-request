@@ -8,17 +8,6 @@ logging:
   log_format: "text"
 
 default_webhooks:
-  - id: "default"
-    name: "Default Webhook"
-    path: "/webhook"
-    config:
-      status_code: 200
-      content_type: "application/json"
-      response_body: '{"message": "Request received"}'
-      timeout: 0
-      headers: {}
-      enable_logging: true
-
   - id: "fast"
     name: "Fast Webhook"
     path: "/webhook/fast"
@@ -41,27 +30,24 @@ default_webhooks:
       headers: {}
       enable_logging: true
 
-  - id: "medium"
-    name: "Medium Webhook"
-    path: "/webhook/medium"
+  - id: "pct_auth"
+    name: "PCT Auth Login"
+    path: "/pct/auth/login"
     config:
       status_code: 200
       content_type: "application/json"
-      response_body: '{"message": "Medium response", "delay": "500ms"}'
-      timeout: 500
-      headers:
-        X-Custom-Header: "webhook-response"
+      response_body: '{"code": 0, "token": "mock_jwt_token_12345", "expire": "2024-01-15T12:00:00Z", "message": "success"}'
+      timeout: 100
+      headers: {}
       enable_logging: true
 
-  - id: "custom"
-    name: "Custom Response Webhook"
-    path: "/webhook/custom"
+  - id: "pct_rcs_report"
+    name: "PCT RCS Report API"
+    path: "/pct/api/request/rcs_report"
     config:
-      status_code: 201
-      content_type: "application/xml"
-      response_body: '<response><message>Custom XML response</message><timestamp>{timestamp}</timestamp></response>'
-      timeout: 100
-      headers:
-        X-Response-Type: "xml"
-        X-Processing-Time: "100ms"
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"code": 0, "message": "Request accepted", "status": "success", "data": {}}'
+      timeout: 50
+      headers: {}
       enable_logging: true
