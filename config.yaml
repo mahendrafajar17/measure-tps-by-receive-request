@@ -18,6 +18,17 @@ default_webhooks:
       timeout: 0
       headers: {}
       enable_logging: false
+      
+  - id: "fast"
+    name: "Fast Webhook"
+    path: "/webhook/fast"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"message": "Fast response", "delay": "0ms"}'
+      timeout: 0
+      headers: {}
+      enable_logging: false
 
   - id: "slow"
     name: "Slow Webhook"
@@ -51,3 +62,23 @@ default_webhooks:
       timeout: 50
       headers: {}
       enable_logging: true
+  - id: "forward1"
+    name: "Forward1"
+    path: "/forward1"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"message": "Fast response", "delay": "0ms"}'
+      timeout: 0
+      headers: {}
+      enable_logging: false
+  - id: "forward2"
+    name: "Forward2"
+    path: "/forward2"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"message": "Fast response", "delay": "0ms"}'
+      timeout: 0
+      headers: {}
+      enable_logging: false
