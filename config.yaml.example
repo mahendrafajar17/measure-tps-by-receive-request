@@ -1,0 +1,73 @@
+server:
+  port: 8080
+  host: "localhost"
+
+logging:
+  log_file: "webhook.log"
+  log_level: "info"
+  log_format: "text"
+
+default_webhooks:
+  - id: "fast"
+    name: "Fast Webhook"
+    path: "/webhook/fast"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"message": "Fast response", "delay": "0ms"}'
+      timeout: 0
+      headers: {}
+      enable_logging: false
+
+  - id: "slow"
+    name: "Slow Webhook"
+    path: "/webhook/slow"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"message": "Slow response", "delay": "2000ms"}'
+      timeout: 2000
+      headers: {}
+      enable_logging: true
+
+  - id: "pct_auth"
+    name: "PCT Auth Login"
+    path: "/pct/auth/login"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"code": 0, "token": "mock_jwt_token_12345", "expire": "2024-01-15T12:00:00Z", "message": "success"}'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "pct_rcs_report"
+    name: "PCT RCS Report API"
+    path: "/pct/api/request/rcs_report"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"code": 0, "message": "Request accepted", "status": "success", "data": {}}'
+      timeout: 50
+      headers: {}
+      enable_logging: true
+  - id: "forward1"
+    name: "Forward1"
+    path: "/forward1"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"message": "Fast response", "delay": "0ms"}'
+      timeout: 0
+      headers: {}
+      enable_logging: false
+  - id: "forward2"
+    name: "Forward2"
+    path: "/forward2"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"message": "Fast response", "delay": "0ms"}'
+      timeout: 0
+      headers: {}
+      enable_logging: false

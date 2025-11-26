@@ -18,17 +18,6 @@ default_webhooks:
       timeout: 0
       headers: {}
       enable_logging: false
-      
-  - id: "fast"
-    name: "Fast Webhook"
-    path: "/webhook/fast"
-    config:
-      status_code: 200
-      content_type: "application/json"
-      response_body: '{"message": "Fast response", "delay": "0ms"}'
-      timeout: 0
-      headers: {}
-      enable_logging: false
 
   - id: "slow"
     name: "Slow Webhook"
@@ -82,3 +71,48 @@ default_webhooks:
       timeout: 0
       headers: {}
       enable_logging: false
+
+  # Meta API Dummy Endpoints
+  - id: "meta_me"
+    name: "Meta Graph API - Me"
+    path: "/me"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"id": "123456789", "name": "Test User", "email": "test@example.com"}'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "meta_pages"
+    name: "Meta Graph API - Pages"
+    path: "/me/pages"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"data": [{"id": "page123", "name": "Test Page", "access_token": "page_token_123"}]}'
+      timeout: 150
+      headers: {}
+      enable_logging: true
+
+  - id: "meta_webhooks"
+    name: "Meta Graph API - Webhooks"
+    path: "/:page_id/subscriptions"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"success": true, "id": "webhook_123"}'
+      timeout: 200
+      headers: {}
+      enable_logging: true
+
+  - id: "meta_messages"
+    name: "Meta Graph API - Send Message"
+    path: "/:page_id/messages"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"recipient_id": "recipient123", "message_id": "msg_123"}'
+      timeout: 300
+      headers: {}
+      enable_logging: true
