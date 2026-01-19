@@ -1,0 +1,347 @@
+server:
+  port: 8080
+  host: "localhost"
+
+logging:
+  log_file: "payment-gateway-mock.log"
+  log_level: "info"
+  log_format: "text"
+
+# Redis configuration for caching and session management
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  database: 0
+  max_retries: 3
+  pool_size: 10
+  connect_timeout: 5s
+
+# Telegram alert configuration (optional - disable if not needed)
+telegram:
+  url: ""
+  chat_id: ""
+  product: "Payment Gateway Mock Server"
+  application: "webhook-server"
+  retry:
+    max_retry: 3
+    interval: 5s
+  alerts:
+    high_tps_threshold: 1000
+    error_rate_threshold: 5.0
+    enable_performance_alerts: false
+    enable_error_alerts: false
+
+# Database configuration (disabled for mock server)
+database:
+  enabled: false
+  host: "localhost"
+  port: 5432
+  username: "mock_user"
+  password: "mock_pass"
+  database: "mock_metrics"
+  max_pool_size: 10
+  connect_timeout: 5
+
+# ==============================================================================
+# Payment Gateway Mock Endpoints
+# ==============================================================================
+default_webhooks:
+
+  # ============================================================================
+  # TOP Payment Gateway Provider Mock Endpoints
+  # ============================================================================
+
+  - id: "top_checkout_qris_success"
+    name: "TOP Checkout QRIS - Success"
+    path: "/2.0/api/merchant/checkout"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "2000600",
+          "responseMessage": "Success",
+          "data": {
+            "failure": false,
+            "message": "Submit order Success",
+            "redirectUrl": "https://api.toko-q.com",
+            "method": "POST",
+            "storeCode": "MNYTST01",
+            "channelCode": "QRISSHOPEEPAY",
+            "sentEmailNewCustomer": false,
+            "isGVA": false,
+            "parameter": {
+              "merchantId": "MNYTST01",
+              "merchantTranId": "{{request.orderId}}",
+              "currencyCode": "{{request.currency}}",
+              "amount": "{{request.amount}}",
+              "custName": "{{request.customerName}}",
+              "custEmail": "{{request.customerEmail}}",
+              "returnUrl": "{{request.returnUrl}}",
+              "paymentId": "PAY1733800000XYZ",
+              "paymentMethod": "1",
+              "transactionType": "1",
+              "transactionId": "TXN1733800000ABC",
+              "orderCreated": "{{request.orderCreated}}",
+              "orderExpired": "{{request.orderExpired}}",
+              "payment_code": "00020101021126580011ID.CO.QRIS.WWW0215ID1234567890303UMI51440014ID.CO.QRIS.WWW02150000000000000000303UMI5204581253033605802ID5916JATIS MOBILE6007JAKARTA61051234062070703A0163045D4A",
+              "channel_name": "QRISSHOPEEPAY",
+              "signature": "d896bfcb8aa8f55fee81d8dde956854d3f8579f7",
+              "imageUrl": "https://api.sandbox.top.co.id/qris/TXN1733800000ABC.png",
+              "nmid": "ID2024000000001",
+              "storeName": "Jatis Mobile Test Store"
+            }
+          }
+        }
+      timeout: 100
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "top_checkout_va_success"
+    name: "TOP Checkout VA - Success"
+    path: "/2.0/api/merchant/checkout/va"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "2000600",
+          "responseMessage": "Success",
+          "data": {
+            "failure": false,
+            "message": "Submit order Success",
+            "redirectUrl": "https://api.toko-q.com",
+            "method": "POST",
+            "storeCode": "MNYTST01",
+            "channelCode": "VABRIC",
+            "sentEmailNewCustomer": false,
+            "isGVA": true,
+            "parameter": {
+              "merchantId": "MNYTST01",
+              "merchantTranId": "{{request.orderId}}",
+              "currencyCode": "{{request.currency}}",
+              "amount": "{{request.amount}}",
+              "custName": "{{request.customerName}}",
+              "custEmail": "{{request.customerEmail}}",
+              "returnUrl": "{{request.returnUrl}}",
+              "paymentId": "PAY1733800001UVW",
+              "paymentMethod": "2",
+              "transactionType": "1",
+              "transactionId": "TXN1733800001DEF",
+              "orderCreated": "{{request.orderCreated}}",
+              "orderExpired": "{{request.orderExpired}}",
+              "payment_code": "8808012345678901",
+              "channel_name": "VABRIC",
+              "signature": "d896bfcb8aa8f55fee81d8dde956854d3f8579f7",
+              "imageUrl": null,
+              "nmid": "ID2024000000002",
+              "storeName": "Jatis Mobile Test Store"
+            }
+          }
+        }
+      timeout: 100
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "top_checkout_error_invalid_merchant"
+    name: "TOP Checkout - Invalid Merchant"
+    path: "/2.0/api/merchant/checkout/error/invalid_merchant"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "4010001",
+          "responseMessage": "Invalid Merchant ID",
+          "data": null
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "top_checkout_error_internal"
+    name: "TOP Checkout - Internal Server Error"
+    path: "/2.0/api/merchant/checkout/error/internal"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "5000001",
+          "responseMessage": "Internal Server Error",
+          "data": null
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "top_checkout_timeout"
+    name: "TOP Checkout - Timeout Simulation"
+    path: "/2.0/api/merchant/checkout/timeout"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "2000600",
+          "responseMessage": "SUCCESS (delayed)",
+          "data": null
+        }
+      timeout: 35000
+      headers: {}
+      enable_logging: true
+
+  - id: "top_status_check_pending"
+    name: "TOP Status Check - Pending"
+    path: "/2.0/api/merchant/status"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "2000600",
+          "responseMessage": "SUCCESS",
+          "data": {
+            "transactionId": "TXN1733800000ABC",
+            "status": "PENDING",
+            "amount": 100000
+          }
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "top_status_check_paid"
+    name: "TOP Status Check - Paid"
+    path: "/2.0/api/merchant/status/paid"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "2000600",
+          "responseMessage": "SUCCESS",
+          "data": {
+            "transactionId": "TXN1733800000ABC",
+            "status": "PAID",
+            "paidAt": "2025-12-09T10:30:00+07:00",
+            "amount": 100000
+          }
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  # ============================================================================
+  # File Service Mock Endpoints
+  # ============================================================================
+
+  - id: "file_service_upload_success"
+    name: "File Service Upload - Success"
+    path: "/file-service/upload"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "result": "000",
+          "fileUrl": "https://storage.mock-file-service.com/qris/FILE1733800000MOCK.png",
+          "expiredAt": "2025-12-31T23:59:59+07:00"
+        }
+      timeout: 50
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "file_service_upload_error"
+    name: "File Service Upload - Error"
+    path: "/file-service/upload/error"
+    config:
+      status_code: 500
+      content_type: "application/json"
+      response_body: |
+        {
+          "success": false,
+          "message": "File upload failed - Storage service unavailable",
+          "error": "STORAGE_ERROR"
+        }
+      timeout: 50
+      headers: {}
+      enable_logging: true
+
+  - id: "file_service_upload_unauthorized"
+    name: "File Service Upload - Unauthorized"
+    path: "/file-service/upload/unauthorized"
+    config:
+      status_code: 401
+      content_type: "application/json"
+      response_body: |
+        {
+          "success": false,
+          "message": "Unauthorized - Invalid or missing token"
+        }
+      timeout: 50
+      headers: {}
+      enable_logging: true
+
+  - id: "file_service_upload_timeout"
+    name: "File Service Upload - Timeout"
+    path: "/file-service/upload/timeout"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "success": true,
+          "message": "Upload completed (delayed)",
+          "data": null
+        }
+      timeout: 35000
+      headers: {}
+      enable_logging: true
+
+  - id: "file_service_get_file"
+    name: "File Service Get File Info"
+    path: "/file-service/FILE1733800000MOCK"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "success": true,
+          "data": {
+            "fileId": "FILE1733800000MOCK",
+            "fileUrl": "https://storage.mock-file-service.com/qris/FILE1733800000MOCK.png",
+            "type": "image",
+            "uploadedAt": "2025-12-09T10:15:00+07:00",
+            "size": 45678,
+            "mimeType": "image/png"
+          }
+        }
+      timeout: 50
+      headers: {}
+      enable_logging: true
+
+  # ============================================================================
+  # Health Check & Utility Endpoints
+  # ============================================================================
+
+  - id: "health_check"
+    name: "Health Check"
+    path: "/ping"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "message": "Payment Gateway Mock Server is running!",
+          "service": "mock-payment-gateway",
+          "version": "1.0.0",
+          "timestamp": "2025-12-09T10:00:00+07:00"
+        }
+      timeout: 10
+      headers: {}
+      enable_logging: false

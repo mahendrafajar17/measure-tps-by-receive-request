@@ -1,0 +1,214 @@
+server:
+  port: 8080
+  host: "localhost"
+
+logging:
+  log_file: "webhook.log"
+  log_level: "info"
+  log_format: "text"
+
+# Redis configuration for caching and session management
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  database: 0
+  max_retries: 3
+  pool_size: 10
+  connect_timeout: 5s
+
+# Telegram alert configuration for monitoring and notifications
+telegram:
+  url: "https://api.telegram.org/bot5801394322:AAEaWtt-jGFb81sT7KqrUOw1Pg9m9dtkWas/sendMessage"
+  chat_id: "-4886766411"
+  product: "TPS Measurement Tool"
+  application: "webhook-server"
+  retry:
+    max_retry: 3
+    interval: 5s
+  alerts:
+    high_tps_threshold: 1000
+    error_rate_threshold: 5.0
+    enable_performance_alerts: true
+    enable_error_alerts: true
+
+# Database configuration (if needed for persistence)
+database:
+  enabled: false
+  host: "localhost"
+  port: 5432
+  username: "webhook_user"
+  password: "webhook_pass"
+  database: "webhook_metrics"
+  max_pool_size: 10
+  connect_timeout: 5
+
+default_webhooks:
+  # Meta WhatsApp API - Template List Endpoints for Scheduler Testing
+  - id: "meta_templates_waba001"
+    name: "Meta Templates WABA 001"
+    path: "/v17.0/149681298632001/message_templates"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"data":[{"id":"123","name":"otp_verification","category":"AUTHENTICATION","status":"APPROVED"},{"id":"456","name":"welcome_message","category":"UTILITY","status":"APPROVED"}]}'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "meta_templates_waba002"
+    name: "Meta Templates WABA 002"
+    path: "/v18.0/149681298632002/message_templates"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: '{"data":[{"id":"789","name":"payment_notification","category":"UTILITY","status":"APPROVED"}]}'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  # JNS SMS API Dummy Endpoints for Reroute Engine Testing
+  # Based on Reply Parameters - Message Push Protocol
+
+  - id: "jns_sendsms_success"
+    name: "JNS SMS API - Success"
+    path: "/api/sendsms"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=1&MessageId=3120910074119080761033f9'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_missing_parameter"
+    name: "JNS SMS API - Missing Parameter"
+    path: "/api/sendsms/error_missing_param"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=2'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_invalid_user_password"
+    name: "JNS SMS API - Invalid User Id or Password"
+    path: "/api/sendsms/error_creds"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=3'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_invalid_message"
+    name: "JNS SMS API - Invalid Message"
+    path: "/api/sendsms/error_message"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=4'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_invalid_msisdn"
+    name: "JNS SMS API - Invalid MSISDN"
+    path: "/api/sendsms/error_msisdn"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=5'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_invalid_sender"
+    name: "JNS SMS API - Invalid Sender"
+    path: "/api/sendsms/error_sender"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=6'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_ip_not_allowed"
+    name: "JNS SMS API - Client IP Address is not allowed"
+    path: "/api/sendsms/error_ip"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=7'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_internal_error"
+    name: "JNS SMS API - Internal Server Error"
+    path: "/api/sendsms/error_internal"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=8'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_invalid_division"
+    name: "JNS SMS API - Invalid Division"
+    path: "/api/sendsms/error_division"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=9'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_rate_limit"
+    name: "JNS SMS API - Rate Limit Login"
+    path: "/api/sendsms/error_rate_limit"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=10'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_invalid_channel"
+    name: "JNS SMS API - Invalid Channel"
+    path: "/api/sendsms/error_channel"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=20'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_token_not_enough"
+    name: "JNS SMS API - Token Not Enough"
+    path: "/api/sendsms/error_token_not_enough"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=21'
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "jns_sendsms_token_not_available"
+    name: "JNS SMS API - Token Not Available"
+    path: "/api/sendsms/error_token_not_available"
+    config:
+      status_code: 200
+      content_type: "text/plain"
+      response_body: 'Status=22'
+      timeout: 100
+      headers: {}
+      enable_logging: true

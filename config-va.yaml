@@ -1,0 +1,326 @@
+server:
+  port: 8080
+  host: "localhost"
+
+logging:
+  log_file: "payment-gateway-mock-va.log"
+  log_level: "info"
+  log_format: "text"
+
+# Redis configuration for caching and session management
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  database: 0
+  max_retries: 3
+  pool_size: 10
+  connect_timeout: 5s
+
+# Telegram alert configuration (optional - disable if not needed)
+telegram:
+  url: ""
+  chat_id: ""
+  product: "Payment Gateway Mock Server - VA"
+  application: "webhook-server"
+  retry:
+    max_retry: 3
+    interval: 5s
+  alerts:
+    high_tps_threshold: 1000
+    error_rate_threshold: 5.0
+    enable_performance_alerts: false
+    enable_error_alerts: false
+
+# Database configuration (disabled for mock server)
+database:
+  enabled: false
+  host: "localhost"
+  port: 5432
+  username: "mock_user"
+  password: "mock_pass"
+  database: "mock_metrics"
+  max_pool_size: 10
+  connect_timeout: 5
+
+# ==============================================================================
+# VA (Virtual Account) TEST CASE - Payment Gateway Mock Endpoints
+# ==============================================================================
+default_webhooks:
+
+  # ============================================================================
+  # TOP Payment Gateway Provider - VA ONLY
+  # ============================================================================
+
+  - id: "top_checkout_va_success"
+    name: "TOP Checkout VA - Success"
+    path: "/2.0/api/merchant/checkout"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "2000600",
+          "responseMessage": "Success",
+          "data": {
+            "failure": false,
+            "message": "Submit order Success",
+            "redirectUrl": "https://api.toko-q.com",
+            "method": "POST",
+            "storeCode": "MNYTST01",
+            "channelCode": "VABRIC",
+            "sentEmailNewCustomer": false,
+            "isGVA": true,
+            "parameter": {
+              "merchantId": "MNYTST01",
+              "merchantTranId": "{{request.orderId}}",
+              "currencyCode": "{{request.currency}}",
+              "amount": "{{request.amount}}",
+              "custName": "{{request.customerName}}",
+              "custEmail": "{{request.customerEmail}}",
+              "returnUrl": "{{request.returnUrl}}",
+              "paymentId": "PAY1733800001UVW",
+              "paymentMethod": "2",
+              "transactionType": "1",
+              "transactionId": "TXN1733800001DEF",
+              "orderCreated": "{{request.orderCreated}}",
+              "orderExpired": "{{request.orderExpired}}",
+              "payment_code": "8808012345678901",
+              "channel_name": "VABRIC",
+              "signature": "d896bfcb8aa8f55fee81d8dde956854d3f8579f7",
+              "imageUrl": null,
+              "nmid": "ID2024000000002",
+              "storeName": "Jatis Mobile Test Store"
+            }
+          }
+        }
+      timeout: 100
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "top_checkout_va_bni_success"
+    name: "TOP Checkout VA BNI - Success"
+    path: "/2.0/api/merchant/checkout/va/bni"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "2000600",
+          "responseMessage": "Success",
+          "data": {
+            "failure": false,
+            "message": "Submit order Success",
+            "redirectUrl": "https://api.toko-q.com",
+            "method": "POST",
+            "storeCode": "MNYTST01",
+            "channelCode": "VABNI",
+            "sentEmailNewCustomer": false,
+            "isGVA": true,
+            "parameter": {
+              "merchantId": "MNYTST01",
+              "merchantTranId": "{{request.orderId}}",
+              "currencyCode": "{{request.currency}}",
+              "amount": "{{request.amount}}",
+              "custName": "{{request.customerName}}",
+              "custEmail": "{{request.customerEmail}}",
+              "returnUrl": "{{request.returnUrl}}",
+              "paymentId": "PAY1733800002XYZ",
+              "paymentMethod": "2",
+              "transactionType": "1",
+              "transactionId": "TXN1733800002GHI",
+              "orderCreated": "{{request.orderCreated}}",
+              "orderExpired": "{{request.orderExpired}}",
+              "payment_code": "8880198765432101",
+              "channel_name": "VABNI",
+              "signature": "d896bfcb8aa8f55fee81d8dde956854d3f8579f7",
+              "imageUrl": null,
+              "nmid": "ID2024000000003",
+              "storeName": "Jatis Mobile Test Store"
+            }
+          }
+        }
+      timeout: 100
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "top_checkout_va_mandiri_success"
+    name: "TOP Checkout VA Mandiri - Success"
+    path: "/2.0/api/merchant/checkout/va/mandiri"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "2000600",
+          "responseMessage": "Success",
+          "data": {
+            "failure": false,
+            "message": "Submit order Success",
+            "redirectUrl": "https://api.toko-q.com",
+            "method": "POST",
+            "storeCode": "MNYTST01",
+            "channelCode": "VAMANDIRI",
+            "sentEmailNewCustomer": false,
+            "isGVA": true,
+            "parameter": {
+              "merchantId": "MNYTST01",
+              "merchantTranId": "{{request.orderId}}",
+              "currencyCode": "{{request.currency}}",
+              "amount": "{{request.amount}}",
+              "custName": "{{request.customerName}}",
+              "custEmail": "{{request.customerEmail}}",
+              "returnUrl": "{{request.returnUrl}}",
+              "paymentId": "PAY1733800003ABC",
+              "paymentMethod": "2",
+              "transactionType": "1",
+              "transactionId": "TXN1733800003JKL",
+              "orderCreated": "{{request.orderCreated}}",
+              "orderExpired": "{{request.orderExpired}}",
+              "payment_code": "70001123456789012",
+              "channel_name": "VAMANDIRI",
+              "signature": "d896bfcb8aa8f55fee81d8dde956854d3f8579f7",
+              "imageUrl": null,
+              "nmid": "ID2024000000004",
+              "storeName": "Jatis Mobile Test Store"
+            }
+          }
+        }
+      timeout: 100
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "top_checkout_va_error_invalid_merchant"
+    name: "TOP Checkout VA - Invalid Merchant"
+    path: "/2.0/api/merchant/checkout/error/invalid_merchant"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "4010001",
+          "responseMessage": "Invalid Merchant ID",
+          "data": null
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "top_checkout_va_error_internal"
+    name: "TOP Checkout VA - Internal Server Error"
+    path: "/2.0/api/merchant/checkout/error/internal"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "5000001",
+          "responseMessage": "Internal Server Error",
+          "data": null
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "top_checkout_va_timeout"
+    name: "TOP Checkout VA - Timeout Simulation"
+    path: "/2.0/api/merchant/checkout/timeout"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "2000600",
+          "responseMessage": "SUCCESS (delayed)",
+          "data": null
+        }
+      timeout: 35000
+      headers: {}
+      enable_logging: true
+
+  - id: "top_status_check_va_pending"
+    name: "TOP Status Check VA - Pending"
+    path: "/2.0/api/merchant/status"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "2000600",
+          "responseMessage": "SUCCESS",
+          "data": {
+            "transactionId": "TXN1733800001DEF",
+            "status": "PENDING",
+            "amount": 100000,
+            "paymentCode": "8808012345678901"
+          }
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "top_status_check_va_paid"
+    name: "TOP Status Check VA - Paid"
+    path: "/2.0/api/merchant/status/paid"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "responseCode": "2000600",
+          "responseMessage": "SUCCESS",
+          "data": {
+            "transactionId": "TXN1733800001DEF",
+            "status": "PAID",
+            "paidAt": "2025-12-09T10:30:00+07:00",
+            "amount": 100000,
+            "paymentCode": "8808012345678901"
+          }
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  # ============================================================================
+  # File Service Mock Endpoints (minimal for VA - no image upload needed)
+  # ============================================================================
+
+  - id: "file_service_health_check"
+    name: "File Service Health Check"
+    path: "/file-service/health"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "success": true,
+          "message": "File service is running",
+          "service": "mock-file-service"
+        }
+      timeout: 10
+      headers: {}
+      enable_logging: false
+
+  # ============================================================================
+  # Health Check & Utility Endpoints
+  # ============================================================================
+
+  - id: "health_check"
+    name: "Health Check"
+    path: "/ping"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "message": "Payment Gateway Mock Server - VA is running!",
+          "service": "mock-payment-gateway-va",
+          "version": "1.0.0",
+          "timestamp": "2025-12-09T10:00:00+07:00"
+        }
+      timeout: 10
+      headers: {}
+      enable_logging: false
