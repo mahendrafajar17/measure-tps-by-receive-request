@@ -1,0 +1,299 @@
+server:
+  port: 8085
+  host: "localhost"
+
+logging:
+  log_file: "fpbx-mock-server.log"
+  log_level: "info"
+  log_format: "text"
+
+# Redis configuration (optional)
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  database: 0
+  max_retries: 3
+  pool_size: 10
+  connect_timeout: 5s
+
+# Telegram alert configuration (disabled)
+telegram:
+  url: ""
+  chat_id: ""
+  product: "FreePBX Mock Server"
+  application: "fpbx-mock"
+  retry:
+    max_retry: 3
+    interval: 5s
+  alerts:
+    high_tps_threshold: 1000
+    error_rate_threshold: 5.0
+    enable_performance_alerts: false
+    enable_error_alerts: false
+
+# Database configuration (disabled)
+database:
+  enabled: false
+
+# ==============================================================================
+# FreePBX MOCK ENDPOINTS - For Sync Recording Service Testing
+# ==============================================================================
+default_webhooks:
+
+  # ============================================================================
+  # Token Endpoint - OAuth2 Client Credentials
+  # ============================================================================
+
+  - id: "fpbx_token_success"
+    name: "FreePBX Token - Success"
+    path: "/admin/api/api/token"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmcGJ4X2FwaV9jbGllbnQiLCJpYXQiOjE3MzM4MDAwMDAsImV4cCI6MTczMzgwMzYwMH0.mock_signature_for_testing",
+          "token_type": "bearer",
+          "expires_in": 3600
+        }
+      timeout: 100
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "fpbx_token_unauthorized"
+    name: "FreePBX Token - Unauthorized"
+    path: "/admin/api/api/token/error/unauthorized"
+    config:
+      status_code: 401
+      content_type: "application/json"
+      response_body: |
+        {
+          "error": "invalid_client",
+          "error_description": "Client authentication failed"
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "fpbx_token_timeout"
+    name: "FreePBX Token - Timeout Simulation"
+    path: "/admin/api/api/token/timeout"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "access_token": "timeout_test_token",
+          "token_type": "bearer",
+          "expires_in": 3600
+        }
+      timeout: 65000
+      headers: {}
+      enable_logging: true
+
+  # ============================================================================
+  # Inbound Routes Endpoint
+  # POST /admin/api/api/rest/fpbxcustomextensionapi/inbound-routes
+  # ============================================================================
+
+  - id: "fpbx_inbound_routes_success"
+    name: "FreePBX Inbound Routes - Success"
+    path: "/admin/api/api/rest/fpbxcustomextensionapi/inbound-routes"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "success",
+          "message": "Inbound route updated successfully",
+          "data": {
+            "route_id": "inbound_001",
+            "recording": "{{request.recording}}",
+            "updated_at": "2026-01-19T10:30:00+07:00"
+          }
+        }
+      timeout: 200
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "fpbx_inbound_routes_error"
+    name: "FreePBX Inbound Routes - Error"
+    path: "/admin/api/api/rest/fpbxcustomextensionapi/inbound-routes/error"
+    config:
+      status_code: 500
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "error",
+          "message": "Internal server error while updating inbound route",
+          "error_code": "FPBX_INTERNAL_ERROR"
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "fpbx_inbound_routes_not_found"
+    name: "FreePBX Inbound Routes - Not Found"
+    path: "/admin/api/api/rest/fpbxcustomextensionapi/inbound-routes/notfound"
+    config:
+      status_code: 404
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "error",
+          "message": "Inbound route not found",
+          "error_code": "ROUTE_NOT_FOUND"
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "fpbx_inbound_routes_timeout"
+    name: "FreePBX Inbound Routes - Timeout"
+    path: "/admin/api/api/rest/fpbxcustomextensionapi/inbound-routes/timeout"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "success",
+          "message": "Inbound route updated (delayed)"
+        }
+      timeout: 65000
+      headers: {}
+      enable_logging: true
+
+  # ============================================================================
+  # Outbound Routes Endpoint
+  # PUT /admin/api/api/rest/fpbxcustomextensionapi/outbound-routes/{id}
+  # ============================================================================
+
+  - id: "fpbx_outbound_routes_success"
+    name: "FreePBX Outbound Routes - Success"
+    path: "/admin/api/api/rest/fpbxcustomextensionapi/outbound-routes/route_001"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "success",
+          "message": "Outbound route updated successfully",
+          "data": {
+            "route_id": "route_001",
+            "recording": "{{request.recording}}",
+            "updated_at": "2026-01-19T10:30:00+07:00"
+          }
+        }
+      timeout: 200
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "fpbx_outbound_routes_success_out_001"
+    name: "FreePBX Outbound Routes - Success (out_001)"
+    path: "/admin/api/api/rest/fpbxcustomextensionapi/outbound-routes/out_001"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "success",
+          "message": "Outbound route updated successfully",
+          "data": {
+            "route_id": "out_001",
+            "recording": "{{request.recording}}",
+            "updated_at": "2026-01-19T10:30:00+07:00"
+          }
+        }
+      timeout: 200
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "fpbx_outbound_routes_error"
+    name: "FreePBX Outbound Routes - Error"
+    path: "/admin/api/api/rest/fpbxcustomextensionapi/outbound-routes/error"
+    config:
+      status_code: 500
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "error",
+          "message": "Internal server error while updating outbound route",
+          "error_code": "FPBX_INTERNAL_ERROR"
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "fpbx_outbound_routes_not_found"
+    name: "FreePBX Outbound Routes - Not Found"
+    path: "/admin/api/api/rest/fpbxcustomextensionapi/outbound-routes/notfound"
+    config:
+      status_code: 404
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "error",
+          "message": "Outbound route not found",
+          "error_code": "ROUTE_NOT_FOUND"
+        }
+      timeout: 100
+      headers: {}
+      enable_logging: true
+
+  - id: "fpbx_outbound_routes_timeout"
+    name: "FreePBX Outbound Routes - Timeout"
+    path: "/admin/api/api/rest/fpbxcustomextensionapi/outbound-routes/timeout"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "success",
+          "message": "Outbound route updated (delayed)"
+        }
+      timeout: 65000
+      headers: {}
+      enable_logging: true
+
+  # ============================================================================
+  # Health Check
+  # ============================================================================
+
+  - id: "fpbx_health_check"
+    name: "FreePBX Health Check"
+    path: "/ping"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "message": "FreePBX Mock Server is running!",
+          "service": "fpbx-mock-server",
+          "version": "1.0.0",
+          "timestamp": "2026-01-19T10:00:00+07:00"
+        }
+      timeout: 10
+      headers: {}
+      enable_logging: false
+
+  - id: "fpbx_admin_status"
+    name: "FreePBX Admin Status"
+    path: "/admin/api/api/rest/fpbxcustomextensionapi/status"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "online",
+          "version": "16.0.40",
+          "extensions_loaded": true,
+          "custom_extension_api": "enabled"
+        }
+      timeout: 50
+      headers: {}
+      enable_logging: true
