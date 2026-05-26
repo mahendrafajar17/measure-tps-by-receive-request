@@ -1,0 +1,111 @@
+server:
+  port: 8085
+  host: "localhost"
+
+logging:
+  log_file: "msgin-converter-webhook.log"
+  log_level: "info"
+  log_format: "text"
+
+# ==============================================================================
+# MSGIN-CONVERTER DUMMY WEBHOOK
+# Digunakan sebagai target webhook saat testing msgin-converter secara lokal.
+#
+# msgin-converter mengirim POST request dengan body MsgInQueueConverted:
+#   {
+#     "object": "whatsapp_business_account",
+#     "entry": [...],
+#     "messages": [...],
+#     "contacts": [...]
+#   }
+#
+# App hanya cek status code 2xx — response body tidak divalidasi.
+#
+# Cara pakai:
+#   cp config.yaml.msgin-converter config.yaml
+#   go run main.go
+#   (atau jalankan instance terpisah di port 8889 untuk webhook kedua)
+#
+# Pastikan webhook di MongoDB mengarah ke:
+#   http://localhost:8888/hook/inbound   → instance ini (port 8888)
+#   http://localhost:8889/hook/inbound   → instance lain (jalankan dengan config port 8889)
+#
+# CATATAN: Path "/" tidak bisa dipakai karena sudah dipakai oleh static file handler
+# di main.go (redirect ke /static/index.html).
+# ==============================================================================
+
+default_webhooks:
+  - id: "msgin_inbound_success"
+    name: "Msgin-Converter Inbound Webhook - Success (200)"
+    path: "/hook/inbound"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "success",
+          "message": "Message received"
+        }
+      timeout: 0
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "msgin_inbound_error_500"
+    name: "Msgin-Converter Inbound Webhook - Server Error (500)"
+    path: "/error/500"
+    config:
+      status_code: 500
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "error",
+          "message": "Internal server error"
+        }
+      timeout: 0
+      headers:
+        Content-Type: "application/json"
+      enable_logging: true
+
+  - id: "msgin_inbound_timeout"
+    name: "Msgin-Converter Inbound Webhook - Timeout (delay > webhook_timeout 10s)"
+    path: "/error/timeout"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {"message": "delayed - should not reach client"}
+      timeout: 15000
+      headers: {}
+      enable_logging: true
+
+  - id: "msgin_inbound_error_404"
+    name: "Msgin-Converter Inbound Webhook - Not Found (404)"
+    path: "/error/404"
+    config:
+      status_code: 404
+      content_type: "application/json"
+      response_body: |
+        {
+          "status": "error",
+          "message": "Endpoint not found"
+        }
+      timeout: 0
+      headers: {}
+      enable_logging: true
+
+  - id: "msgin_health"
+    name: "Health Check"
+    path: "/ping"
+    config:
+      status_code: 200
+      content_type: "application/json"
+      response_body: |
+        {
+          "message": "Msgin-Converter Dummy Webhook is running!",
+          "service": "msgin-converter-dummy-webhook",
+          "port": 8888
+        }
+      timeout: 0
+      headers: {}
+      enable_logging: false
